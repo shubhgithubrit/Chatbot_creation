@@ -1,0 +1,158 @@
+ /////////Pseduo code///////
+ 
+// Import the necessary modules: fs for file system operations, fetch for making API requests, and nodemailer for sending emails.
+// Set the constant API_KEY to the API key for authentication.
+// Configure the email settings, including the email host, port, authentication details, etc.
+// Create a readline interface for user input and output.
+// Define a function named displayMenu to show the available options to the user.
+// Define an asynchronous function named askForPrompt that takes an option as input.
+// Inside askForPrompt:
+// a. Prompt the user to enter their prompt for the given option.
+// b. Send a POST request to the OpenAI API with the prompt, API key, and other parameters.
+// c. Parse the response from the API into JSON format.
+// d. If the API response contains choices:
+// Retrieve the content of the first choice.
+// Display the result to the user.
+// Ask the user if they want to send the result via email.
+// If yes, prompt the user to enter their email address.
+// Send the result via email using the configured email settings.
+// Call the chatbot function again.
+// e. If no choices are found in the API response, display an error message and call the chatbot function again.
+// Define a function named sendEmail that takes the result and email address as inputs.
+// Create the mail options with the result, email address, subject, etc.
+// Send the email using the configured email transporter.
+// Display the status of the email sending process.
+// Call the chatbot function again.
+// Define a function named chatbot that serves as the main entry point.
+// Call the displayMenu function to show the available options.
+// Prompt the user to enter their choice.
+// If the choice is "exit," close the readline interface.
+// Depending on the choice, call the askForPrompt function with the corresponding option.
+// If the choice is invalid, display an error message and call the chatbot function again.
+// Call the chatbot function to start the chatbot process.
+
+
+const readline = require('readline');
+const fetch = require('node-fetch');
+const nodemailer = require('nodemailer');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+//open_ai_api key
+const API_KEY = "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"; //OpenAI API key
+
+// Email configuration 
+const emailConfig = {
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: 'sg4030383@gmail.com',
+    pass: 'xpacscwcdsedbdnr'
+  }
+};
+
+const transporter = nodemailer.createTransport(emailConfig);
+
+const displayMenu = () => {
+  console.log("Menu Options:");
+  console.log("1. Need answer");
+  console.log("2. Need code");
+  console.log("3. Need suggestion");
+};
+
+const askForPrompt = async (option) => {
+  const prompt = await new Promise((resolve) => {
+    rl.question(`Enter your prompt for option ${option}: `, (answer) => {
+      resolve(answer);
+    });
+  });
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${API_KEY}`
+    },
+    body: JSON.stringify({
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 3000,
+      temperature: 0.2,
+      model: "gpt-3.5-turbo"
+    })
+  });
+
+  const data = await response.json();
+  console.log('Data', data)
+
+  if (data.choices && data.choices.length > 0) {
+    const result = data.choices[0].message;
+    console.log("Result:");
+    console.log(result);
+
+    rl.question("you want to send the result via email? (Y/N): ", (answer) => {
+      if (answer.toLowerCase() === 'y') {
+        rl.question("Enter your email address: ", (email) => {
+          sendEmail(result, email);
+        });
+      } else {
+        chatbot();
+      }
+    });
+  } else {
+    console.log("No response received from the chatbot. Please try again.");
+    chatbot();
+  }
+};
+//Function to send the emails
+const sendEmail = (result, email) => {
+  const mailOptions = {
+    from: emailConfig.auth.user,//Sender Mail id
+    to: email,//Receiver Mail  id
+    subject: 'Chatbot Result',//  Subject of email
+    text: result//Content of mail
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log("Error sending email:", error);
+    } else {
+      console.log("Email sent:", info.response);
+    }
+
+    chatbot();
+  });
+};
+//ChatBot function to perfrom chat with AI
+const chatbot = () => {
+  displayMenu();
+
+  rl.question("Enter your choice (or 'exit' to quit): ", (choice) => {
+    if (choice.toLowerCase() === 'exit') {
+      rl.close();
+    } else {
+      switch (choice) {//Switch case to Jump in options
+        case '1':
+          askForPrompt("1 (Need answer)");
+          break;
+        case '2':
+          askForPrompt("2 (Need code)");
+          break;
+        case '3':
+          askForPrompt("3 (Need suggestion)");
+          break;
+        default:
+          console.log("Invalid choice. Please try again.");
+          chatbot();
+          break;
+      }
+    }
+  });
+};
+
+chatbot();
